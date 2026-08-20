@@ -11,8 +11,10 @@ let focusWarningPlayed = false;
 let breakWarningPlayed = false;
 
 let audioCtx = null;
-// This new variable will hold the continuous alarm loop
-let endlessAlarmInterval = null;
+let activeHarshAlarmNode = null;
+
+// New variable to hold the screen awake lock
+let wakeLock = null;
 
 const focusDisplay = document.getElementById("focusDisplay");
 const breakDisplay = document.getElementById("breakDisplay");
@@ -36,57 +38,66 @@ function initAudio() {
     }
 }
 
-// Offline Electronic Sound Generator
-function playSingleBeep(type) {
-    initAudio(); 
-    if (!audioCtx) return;
-    
-    if (type === 'soft') {
-        let now = audioCtx.currentTime;
-        [0, 0.15].forEach(delay => {
-            let osc = audioCtx.createOscillator();
-            let gain = audioCtx.createGain ? audioCtx.createGain() : audioCtx.createGain();
-            osc.type = 'triangle'; 
-            osc.frequency.setValueAtTime(1200, now + delay); 
-            gain.gain.setValueAtTime(0.4, now + delay); 
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start(now + delay);
-            osc.stop(now + delay + 0.08); 
-        });
-    } else if (type === 'urgent') {
-        // One piece of the urgent finish sound
-        let osc = audioCtx.createOscillator();
-        let gain = audioCtx.createGain ? audioCtx.createGain() : audioCtx.createGain();
-        osc.type = 'square'; 
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime); 
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.3); // Sounds for 0.3 seconds
+// Automatically stops your phone from locking its screen
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+        }
+    } catch (err) {
+        // Screen stay-awake not supported or blocked
     }
 }
 
-// Starts the endless repeating alarm loop
-function startEndlessAlarm() {
-    // Clear any leftover loop just in case
-    if (endlessAlarmInterval) clearInterval(endlessAlarmInterval);
-    
-    // Play immediately the first time
-    playSingleBeep('urgent');
-    
-    // Repeat the alarm beep every 0.6 seconds so it doesn't stop
-    endlessAlarmInterval = setInterval(() => {
-        playSingleBeep('urgent');
-    }, 6000); 
+// Lets your phone go back to sleeping normally
+function releaseWakeLock() {
+    if (wakeLock !== null) {
+        wakeLock.release();
+        wakeLock = null;
+    }
 }
 
-// Stops the endless repeating alarm loop
-function stopEndlessAlarm() {
-    if (endlessAlarmInterval) {
-        clearInterval(endlessAlarmInterval);
-        endlessAlarmInterval = null;
+function playSoftWarning() {
+    initAudio(); 
+    if (!audioCtx) return;
+    
+    let now = audioCtx.currentTime;
+    [0, 0.15].forEach(delay => {
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.type = 'triangle'; 
+        osc.frequency.setValueAtTime(1200, now + delay); 
+        gain.gain.setValueAtTime(0.4, now + delay); 
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + delay);
+        osc.stop(now + delay + 0.08); 
+    });
+}
+
+function startHarshAlarm() {
+    initAudio();
+    if (!audioCtx) return;
+    stopHarshAlarm();
+
+    activeHarshAlarmNode = audioCtx.createOscillator();
+    let gainNode = audioCtx.createGain();
+    activeHarshAlarmNode.type = 'square'; 
+    activeHarshAlarmNode.frequency.setValueAtTime(950, audioCtx.currentTime); 
+    gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
+
+    activeHarshAlarmNode.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    activeHarshAlarmNode.start();
+}
+
+function stopHarshAlarm() {
+    if (activeHarshAlarmNode) {
+        try {
+            activeHarshAlarmNode.stop();
+            activeHarshAlarmNode.disconnect();
+        } catch (e) {}
+        activeHarshAlarmNode = null;
     }
 }
 
@@ -97,7 +108,8 @@ function showPopup(text) {
 
 function closePopup() {
     customPopup.classList.add("popup-hidden");
-    stopEndlessAlarm(); // Instantly silences the alarm when OK is tapped!
+    stopHarshAlarm(); 
+    releaseWakeLock(); // Let the screen rest now
 }
 
 function formatTime(totalSeconds) {
@@ -147,19 +159,21 @@ function toggleFocus(e) {
         clearInterval(focusInterval);
         focusInterval = null;
         focusCard.classList.remove("active-card");
+        releaseWakeLock(); // Allow screen sleep on pause
     } else {
         focusCard.classList.add("active-card");
+        requestWakeLock(); // Lock screen awake on start!
         focusInterval = setInterval(() => {
             if (focusTimeLeft <= 0) {
                 clearInterval(focusInterval);
                 focusInterval = null;
                 focusCard.classList.remove("active-card");
-                startEndlessAlarm(); // Starts ringing forever!
+                startHarshAlarm(); 
                 showPopup("Focus Session Finished! Time to stretch."); 
             } else {
                 focusTimeLeft--;
                 if (focusTimeLeft === 20 * 60 && !focusWarningPlayed) {
-                    playSingleBeep('soft');
+                    playSoftWarning();
                     focusWarningPlayed = true;
                 }
                 updateDisplays(); 
@@ -177,24 +191,26 @@ function toggleBreak(e) {
         clearInterval(breakInterval);
         breakInterval = null;
         breakCard.classList.remove("active-card");
+        releaseWakeLock(); // Allow screen sleep on pause
     } else {
         breakCard.classList.add("active-card");
+        requestWakeLock(); // Lock screen awake on start!
         breakInterval = setInterval(() => {
             if (breakTimeLeft <= 0) {
                 clearInterval(breakInterval);
                 breakInterval = null;
                 breakCard.classList.remove("active-card");
-                startEndlessAlarm(); // Starts ringing forever!
+                startHarshAlarm(); 
                 showPopup("Break Over! Let's get back to work."); 
             } else {
                 breakTimeLeft--;
                 if (breakTimeLeft === 5 * 60 && !breakWarningPlayed) {
-                    playSingleBeep('soft');
+                    playSoftWarning();
                     breakWarningPlayed = true;
                 }
                 updateDisplays(); 
             }
-        }, 1);
+        }, 1000);
     }
 }
 
@@ -208,7 +224,8 @@ function resetFocus(e) {
     focusTimeLeft = FOCUS_DEFAULT;
     focusWarningPlayed = false;
     focusCard.classList.remove("active-card");
-    stopEndlessAlarm(); // Also cuts sound if you reset mid-alarm
+    stopHarshAlarm(); 
+    releaseWakeLock();
     updateDisplays();
 }
 
@@ -222,7 +239,8 @@ function resetBreak(e) {
     breakTimeLeft = BREAK_DEFAULT;
     breakWarningPlayed = false;
     breakCard.classList.remove("active-card");
-    stopEndlessAlarm(); // Also cuts sound if you reset mid-alarm
+    stopHarshAlarm(); 
+    releaseWakeLock();
     updateDisplays();
 }
 
