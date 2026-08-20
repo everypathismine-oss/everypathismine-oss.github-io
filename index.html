@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus & Break Timer</title>
+    <!-- This line connects your CSS file -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Top Section: Focus -->
+    <div class="timer-card" id="focusCard">
+        <h2>Focus</h2>
+        <div id="focusDisplay" class="display-box">100:00</div>
+        <button id="focusResetBtn" class="reset-btn">Reset</button>
+    </div>
+
+    <!-- Bottom Section: Break -->
+    <div class="timer-card" id="breakCard">
+        <h2>Break</h2>
+        <div id="breakDisplay" class="display-box">20:00</div>
+        <button id="breakResetBtn" class="reset-btn">Reset</button>
+    </div>
+
+    <!-- Custom On-Screen Pop-up Box -->
+    <div id="customPopup" class="popup-hidden">
+        <p id="popupMessage">Time is up!</p>
+        <button id="closePopupBtn">OK</button>
+    </div>
+
+    <!-- This line connects your JavaScript file -->
+    <script src="script.js"></script>
+</body>
+
+</html>

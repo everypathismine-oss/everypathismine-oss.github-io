@@ -1,0 +1,114 @@
+body {
+    font-family: sans-serif;
+    text-align: center;
+    background-color: #121212;
+    /* Clean dark background */
+    color: #ffffff;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    justify-content: center;
+    min-height: 90vh;
+}
+
+/* Base style for both cards when paused */
+.timer-card {
+    background-color: #1e1e1e;
+    /* Subtle dark gray */
+    padding: 25px;
+    border-radius: 15px;
+    border: 2px solid #2a2a2a;
+    /* Dim border */
+    transition: all 0.3s ease;
+}
+
+/* Neutral heading styles */
+.timer-card h2 {
+    color: #aaaaaa;
+    /* Light gray title */
+    margin-top: 0;
+    font-size: 24px;
+}
+
+/* Neutral display numbers style */
+.display-box {
+    font-size: 70px;
+    font-weight: bold;
+    font-family: monospace;
+    margin: 20px auto;
+    padding: 10px;
+    cursor: pointer;
+    width: fit-content;
+    color: #666666;
+    /* Dimmed numbers when paused */
+    transition: color 0.3s ease;
+}
+
+/* NEUTRAL HIGHLIGHT: When a card becomes ACTIVE */
+.timer-card.active-card {
+    background-color: #2d2d2d;
+    /* Brighter gray highlights the card */
+    border-color: #ffffff;
+    /* Sharp white border cuts through */
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+/* Simple reset buttons */
+.reset-btn {
+    font-size: 14px;
+    padding: 8px 20px;
+    background-color: #2a2a2a;
+    color: #888888;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.reset-btn:active {
+    transform: scale(0.95);
+}
+
+.timer-card.active-card .reset-btn {
+    background-color: #444444;
+    color: #ffffff;
+}
+
+/* Pop-up Box Styles */
+#customPopup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #2d2d2d;
+    border: 3px solid #ff1e43;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    width: 280px;
+    transition: all 0.3s ease;
+}
+
+#customPopup p {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+#customPopup button {
+    background-color: #ff1e43;
+    color: white;
+    font-size: 16px;
+    padding: 10px 25px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+}
+
+/* Hidden state for pop-up */
+.popup-hidden {
+    display: none !important;
+}
