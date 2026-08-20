@@ -11,6 +11,8 @@ let focusWarningPlayed = false;
 let breakWarningPlayed = false;
 
 let audioCtx = null;
+// This new variable will hold the continuous alarm loop
+let endlessAlarmInterval = null;
 
 const focusDisplay = document.getElementById("focusDisplay");
 const breakDisplay = document.getElementById("breakDisplay");
@@ -35,38 +37,56 @@ function initAudio() {
 }
 
 // Offline Electronic Sound Generator
-function playBeep(type) {
+function playSingleBeep(type) {
     initAudio(); 
     if (!audioCtx) return;
     
     if (type === 'soft') {
-        // NEW SHARPER MID BEEP: A piercing double-chirp using a sharp triangle wave
         let now = audioCtx.currentTime;
         [0, 0.15].forEach(delay => {
             let osc = audioCtx.createOscillator();
-            let gain = audioCtx.createGain();
-            osc.type = 'triangle'; // Clearer, sharper tone than a sine wave
-            osc.frequency.setValueAtTime(1200, now + delay); // High piercing pitch
-            gain.gain.setValueAtTime(0.4, now + delay); // Louder volume
+            let gain = audioCtx.createGain ? audioCtx.createGain() : audioCtx.createGain();
+            osc.type = 'triangle'; 
+            osc.frequency.setValueAtTime(1200, now + delay); 
+            gain.gain.setValueAtTime(0.4, now + delay); 
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start(now + delay);
-            osc.stop(now + delay + 0.08); // Quick sharp snaps
+            osc.stop(now + delay + 0.08); 
         });
     } else if (type === 'urgent') {
-        // Final finish alarm: Loud buzzer sound
-        let now = audioCtx.currentTime;
-        [0, 0.3, 0.6].forEach(delay => {
-            let osc = audioCtx.createOscillator();
-            let gain = audioCtx.createGain();
-            osc.type = 'square'; 
-            osc.frequency.setValueAtTime(880, now + delay); 
-            gain.gain.setValueAtTime(0.3, now + delay); 
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start(now + delay);
-            osc.stop(now + delay + 0.2);
-        });
+        // One piece of the urgent finish sound
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain ? audioCtx.createGain() : audioCtx.createGain();
+        osc.type = 'square'; 
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime); 
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3); // Sounds for 0.3 seconds
+    }
+}
+
+// Starts the endless repeating alarm loop
+function startEndlessAlarm() {
+    // Clear any leftover loop just in case
+    if (endlessAlarmInterval) clearInterval(endlessAlarmInterval);
+    
+    // Play immediately the first time
+    playSingleBeep('urgent');
+    
+    // Repeat the alarm beep every 0.6 seconds so it doesn't stop
+    endlessAlarmInterval = setInterval(() => {
+        playSingleBeep('urgent');
+    }, 6000); 
+}
+
+// Stops the endless repeating alarm loop
+function stopEndlessAlarm() {
+    if (endlessAlarmInterval) {
+        clearInterval(endlessAlarmInterval);
+        endlessAlarmInterval = null;
     }
 }
 
@@ -77,6 +97,7 @@ function showPopup(text) {
 
 function closePopup() {
     customPopup.classList.add("popup-hidden");
+    stopEndlessAlarm(); // Instantly silences the alarm when OK is tapped!
 }
 
 function formatTime(totalSeconds) {
@@ -117,7 +138,8 @@ function updateDisplays() {
     updateDisplayColors();
 }
 
-function toggleFocus() {
+function toggleFocus(e) {
+    if (e) e.preventDefault(); 
     initAudio(); 
     if (breakInterval) toggleBreak(); 
 
@@ -132,24 +154,22 @@ function toggleFocus() {
                 clearInterval(focusInterval);
                 focusInterval = null;
                 focusCard.classList.remove("active-card");
-                playBeep('urgent'); 
+                startEndlessAlarm(); // Starts ringing forever!
                 showPopup("Focus Session Finished! Time to stretch."); 
             } else {
                 focusTimeLeft--;
-                
-                // Triggers sharp beep at 20 minutes left. No pop-up box.
                 if (focusTimeLeft === 20 * 60 && !focusWarningPlayed) {
-                    playBeep('soft');
+                    playSingleBeep('soft');
                     focusWarningPlayed = true;
                 }
-                
                 updateDisplays(); 
             }
         }, 1000);
     }
 }
 
-function toggleBreak() {
+function toggleBreak(e) {
+    if (e) e.preventDefault(); 
     initAudio(); 
     if (focusInterval) toggleFocus(); 
 
@@ -164,17 +184,14 @@ function toggleBreak() {
                 clearInterval(breakInterval);
                 breakInterval = null;
                 breakCard.classList.remove("active-card");
-                playBeep('urgent'); 
+                startEndlessAlarm(); // Starts ringing forever!
                 showPopup("Break Over! Let's get back to work."); 
             } else {
                 breakTimeLeft--;
-                
-                // Triggers sharp beep at 5 minutes left. No pop-up box.
                 if (breakTimeLeft === 5 * 60 && !breakWarningPlayed) {
-                    playBeep('soft');
+                    playSingleBeep('soft');
                     breakWarningPlayed = true;
                 }
-                
                 updateDisplays(); 
             }
         }, 1000);
@@ -182,29 +199,42 @@ function toggleBreak() {
 }
 
 function resetFocus(e) {
-    if(e) e.stopPropagation(); 
+    if(e) {
+        e.preventDefault();
+        e.stopPropagation(); 
+    }
     clearInterval(focusInterval);
     focusInterval = null;
     focusTimeLeft = FOCUS_DEFAULT;
     focusWarningPlayed = false;
     focusCard.classList.remove("active-card");
+    stopEndlessAlarm(); // Also cuts sound if you reset mid-alarm
     updateDisplays();
 }
 
 function resetBreak(e) {
-    if(e) e.stopPropagation(); 
+    if(e) {
+        e.preventDefault();
+        e.stopPropagation(); 
+    }
     clearInterval(breakInterval);
     breakInterval = null;
     breakTimeLeft = BREAK_DEFAULT;
     breakWarningPlayed = false;
     breakCard.classList.remove("active-card");
+    stopEndlessAlarm(); // Also cuts sound if you reset mid-alarm
     updateDisplays();
 }
 
-focusDisplay.addEventListener("click", toggleFocus);
-breakDisplay.addEventListener("click", toggleBreak);
-focusResetBtn.addEventListener("click", resetFocus);
-breakResetBtn.addEventListener("click", resetBreak);
-closePopupBtn.addEventListener("click", closePopup);
+const touchEvent = 'ontouchstart' in window ? 'touchstart' : 'click';
+
+focusDisplay.addEventListener(touchEvent, toggleFocus);
+breakDisplay.addEventListener(touchEvent, toggleBreak);
+focusResetBtn.addEventListener(touchEvent, resetFocus);
+breakResetBtn.addEventListener(touchEvent, resetBreak);
+closePopupBtn.addEventListener(touchEvent, function(e) {
+    if (e) e.preventDefault();
+    closePopup();
+});
 
 updateDisplays();
