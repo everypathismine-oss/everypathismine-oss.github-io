@@ -194,7 +194,7 @@ function toggleBreak(e) {
                 }
                 updateDisplays(); 
             }
-        }, 1000);
+        }, 1);
     }
 }
 
